@@ -23,7 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "lora.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,6 +33,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define TIMEOUT_SPI	1000
+#define LORA_FREQ 915
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -53,11 +55,16 @@ static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
 
+void writeReg(uint8_t addr, uint8_t value);
+void readReg(uint8_t addr);
+void sendPacket(uint8_t data, uint8_t size);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-	uint8_t data[] = "Hello World";
+	//uint8_t data[] = "Hello World";
+	uint8_t data[8] = {0};
 /* USER CODE END 0 */
 
 /**
@@ -93,18 +100,19 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   //reset LoRa
-  HAL_GPIO_WritePin(GPIOB, LORA_RST_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LORA_RST_GPIO_Port, LORA_RST_Pin, GPIO_PIN_RESET);
   HAL_Delay(10);
-  HAL_GPIO_WritePin(GPIOB, LORA_RST_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(LORA_RST_GPIO_Port, LORA_RST_Pin, GPIO_PIN_SET);
   HAL_Delay(10);
 
-  //set LoRa frequency to 915.0
+  //set LoRa frequency to 915MHz
 
 
   //set payload length
 
 
   /* USER CODE END 2 */
+ 
  
 
   /* Infinite loop */
@@ -123,8 +131,12 @@ int main(void)
 	  	  //payload length
 	  	  //set mode to TX
 
+	  //sendPacket(data, sizeof(data));
 
 	  //wait for the packet to be sent
+
+	  writeReg(RH_RF95_REG_22_PAYLOAD_LENGTH, 8); //configure payload length
+	  readReg(RH_RF95_REG_22_PAYLOAD_LENGTH);
 
 
   }
@@ -191,7 +203,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_HARD_OUTPUT;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
   hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
@@ -221,7 +233,17 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LORA_RST_Pin|LORA_IT_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin : LORA_NSS_Pin */
+  GPIO_InitStruct.Pin = LORA_NSS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LORA_NSS_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LORA_RST_Pin LORA_IT_Pin */
   GPIO_InitStruct.Pin = LORA_RST_Pin|LORA_IT_Pin;
@@ -233,6 +255,48 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+//Function for writing to a register
+void writeReg(uint8_t addr, uint8_t value)
+{
+	uint8_t temp = addr | 0x80;
+	uint8_t reg[] = {temp};
+	uint8_t val[] = {value};
+	HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_RESET); //pull NSS low to start frame
+	HAL_SPI_Transmit(&hspi1, reg, sizeof(reg), TIMEOUT_SPI);
+	HAL_SPI_Transmit(&hspi1, val, sizeof(val), TIMEOUT_SPI);
+	HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_SET); //pull NSS high to end frame
+}
+
+//Function for reading from a register (not finished)
+void readReg(uint8_t addr)
+{
+	uint8_t temp = addr & ~0x80;
+	uint8_t reg[] = {temp};
+	HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_RESET); //pull NSS low to start frame
+	HAL_SPI_Transmit(&hspi1, reg, sizeof(reg), TIMEOUT_SPI); //send a read command from that address
+	HAL_SPI_Receive(&hspi1, data, sizeof(data), TIMEOUT_SPI);
+	HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_SET); //pull NSS high to end frame
+}
+
+//Function for sending a packet to another lora module
+void sendPacket(uint8_t data, uint8_t size)
+{
+	  //send information
+	  	  //set mode idle
+	  	  //position at beginning of FIFO
+	  	  //headers
+	  	  //message data
+	  	  //payload length
+	  	  //set mode to TX
+
+	//set mode to idle
+	writeReg(RH_RF95_REG_01_OP_MODE, RH_RF95_MODE_STDBY);
+
+	//position pointer at the beginning of the FIFO
+	//writeReg(RH_RF95_REG_00_FIFO, );
+}
+
 
 /* USER CODE END 4 */
 
