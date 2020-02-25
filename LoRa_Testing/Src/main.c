@@ -33,8 +33,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define TIMEOUT_SPI	1000
-#define LORA_FREQ 915
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -43,7 +41,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-SPI_HandleTypeDef hspi1;
+SPI_HandleTypeDef hspi2;
 
 /* USER CODE BEGIN PV */
 
@@ -52,19 +50,16 @@ SPI_HandleTypeDef hspi1;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_SPI1_Init(void);
+static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
-
 void writeReg(uint8_t addr, uint8_t value);
 void readReg(uint8_t addr);
 void sendPacket(uint8_t data, uint8_t size);
-
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-	//uint8_t data[] = "Hello World";
-	uint8_t data[8] = {0};
+uint8_t data = 0;
 /* USER CODE END 0 */
 
 /**
@@ -96,21 +91,13 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_SPI1_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
-
   //reset LoRa
   HAL_GPIO_WritePin(LORA_RST_GPIO_Port, LORA_RST_Pin, GPIO_PIN_RESET);
   HAL_Delay(10);
   HAL_GPIO_WritePin(LORA_RST_GPIO_Port, LORA_RST_Pin, GPIO_PIN_SET);
   HAL_Delay(10);
-
-  //set LoRa frequency to 915MHz
-
-
-  //set payload length
-
-
   /* USER CODE END 2 */
  
  
@@ -122,23 +109,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
-	  //send information
-	  	  //set mode idle
-	  	  //position at beginning of FIFO
-	  	  //headers
-	  	  //message data
-	  	  //payload length
-	  	  //set mode to TX
-
-	  //sendPacket(data, sizeof(data));
-
-	  //wait for the packet to be sent
-
-	  writeReg(RH_RF95_REG_22_PAYLOAD_LENGTH, 8); //configure payload length
-	  readReg(RH_RF95_REG_22_PAYLOAD_LENGTH);
-
-
+	writeReg(RH_RF95_REG_22_PAYLOAD_LENGTH, 0x5); //configure payload length
+	readReg(RH_RF95_REG_22_PAYLOAD_LENGTH);
   }
   /* USER CODE END 3 */
 }
@@ -182,40 +154,40 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief SPI1 Initialization Function
+  * @brief SPI2 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_SPI1_Init(void)
+static void MX_SPI2_Init(void)
 {
 
-  /* USER CODE BEGIN SPI1_Init 0 */
+  /* USER CODE BEGIN SPI2_Init 0 */
 
-  /* USER CODE END SPI1_Init 0 */
+  /* USER CODE END SPI2_Init 0 */
 
-  /* USER CODE BEGIN SPI1_Init 1 */
+  /* USER CODE BEGIN SPI2_Init 1 */
 
-  /* USER CODE END SPI1_Init 1 */
-  /* SPI1 parameter configuration*/
-  hspi1.Instance = SPI1;
-  hspi1.Init.Mode = SPI_MODE_MASTER;
-  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
-  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi1.Init.CRCPolynomial = 7;
-  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  /* USER CODE END SPI2_Init 1 */
+  /* SPI2 parameter configuration*/
+  hspi2.Instance = SPI2;
+  hspi2.Init.Mode = SPI_MODE_MASTER;
+  hspi2.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi2.Init.NSS = SPI_NSS_SOFT;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
+  hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi2.Init.CRCPolynomial = 7;
+  if (HAL_SPI_Init(&hspi2) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN SPI1_Init 2 */
+  /* USER CODE BEGIN SPI2_Init 2 */
 
-  /* USER CODE END SPI1_Init 2 */
+  /* USER CODE END SPI2_Init 2 */
 
 }
 
@@ -229,14 +201,14 @@ static void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, LORA_RST_Pin|LORA_IT_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(LORA_RST_GPIO_Port, LORA_RST_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin : LORA_NSS_Pin */
   GPIO_InitStruct.Pin = LORA_NSS_Pin;
@@ -245,41 +217,41 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LORA_NSS_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LORA_RST_Pin LORA_IT_Pin */
-  GPIO_InitStruct.Pin = LORA_RST_Pin|LORA_IT_Pin;
+  /*Configure GPIO pin : LORA_RST_Pin */
+  GPIO_InitStruct.Pin = LORA_RST_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(LORA_RST_GPIO_Port, &GPIO_InitStruct);
 
 }
 
 /* USER CODE BEGIN 4 */
-
 //Function for writing to a register
 void writeReg(uint8_t addr, uint8_t value)
 {
-	uint8_t temp = addr | 0x80;
-	uint8_t reg[] = {temp};
-	uint8_t val[] = {value};
+	uint8_t reg = addr | 0x80;
+	uint8_t val = value;
 	HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_RESET); //pull NSS low to start frame
-	HAL_SPI_Transmit(&hspi1, reg, sizeof(reg), TIMEOUT_SPI);
-	HAL_SPI_Transmit(&hspi1, val, sizeof(val), TIMEOUT_SPI);
+	HAL_SPI_Transmit(&hspi2, &reg, (uint16_t)sizeof(reg), 1000);
+	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
+	HAL_SPI_Transmit(&hspi2, &val, (uint16_t)sizeof(val), 1000);
+	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
 	HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_SET); //pull NSS high to end frame
 }
 
-//Function for reading from a register (not finished)
+//Function for reading from a register
 void readReg(uint8_t addr)
 {
-	uint8_t temp = addr & ~0x80;
-	uint8_t reg[] = {temp};
+	uint8_t reg = addr & ~0x80;
 	HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_RESET); //pull NSS low to start frame
-	HAL_SPI_Transmit(&hspi1, reg, sizeof(reg), TIMEOUT_SPI); //send a read command from that address
-	HAL_SPI_Receive(&hspi1, data, sizeof(data), TIMEOUT_SPI);
+	//HAL_SPI_TransmitReceive(&hspi2, &reg, &data, 1, 1000);
+	HAL_SPI_Transmit(&hspi2, &reg, sizeof(reg), 1000); //send a read command from that address
+	HAL_SPI_Receive(&hspi2, &data, sizeof(data), 1000);
 	HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_SET); //pull NSS high to end frame
 }
 
-//Function for sending a packet to another lora module
+//Function for sending a packet to another lora module (not finished)
 void sendPacket(uint8_t data, uint8_t size)
 {
 	  //send information
@@ -291,13 +263,11 @@ void sendPacket(uint8_t data, uint8_t size)
 	  	  //set mode to TX
 
 	//set mode to idle
-	writeReg(RH_RF95_REG_01_OP_MODE, RH_RF95_MODE_STDBY);
+	//writeReg(RH_RF95_REG_01_OP_MODE, RH_RF95_MODE_STDBY);
 
 	//position pointer at the beginning of the FIFO
 	//writeReg(RH_RF95_REG_00_FIFO, );
 }
-
-
 /* USER CODE END 4 */
 
 /**
