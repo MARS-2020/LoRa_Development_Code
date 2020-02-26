@@ -93,11 +93,25 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
+
   //reset LoRa
   HAL_GPIO_WritePin(LORA_RST_GPIO_Port, LORA_RST_Pin, GPIO_PIN_RESET);
   HAL_Delay(10);
   HAL_GPIO_WritePin(LORA_RST_GPIO_Port, LORA_RST_Pin, GPIO_PIN_SET);
   HAL_Delay(10);
+
+
+  //set to HF mode
+  writeReg(RH_RF95_REG_01_OP_MODE, (0x09 & ~(0x1 << 3)));
+
+  //set frequency to 915MHz = 0xE4C000
+  writeReg(RH_RF95_REG_08_FRF_LSB, 0x00);
+  writeReg(RH_RF95_REG_07_FRF_MID, 0xC0);
+  writeReg(RH_RF95_REG_06_FRF_MSB, 0xE4);
+
+  //set tx power to 23
+
+
   /* USER CODE END 2 */
  
  
@@ -109,8 +123,12 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
 	writeReg(RH_RF95_REG_22_PAYLOAD_LENGTH, 0x5); //configure payload length
+	HAL_Delay(1);
 	readReg(RH_RF95_REG_22_PAYLOAD_LENGTH);
+	HAL_Delay(100);
+
   }
   /* USER CODE END 3 */
 }
