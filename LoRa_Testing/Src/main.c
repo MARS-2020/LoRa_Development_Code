@@ -53,13 +53,19 @@ static void MX_GPIO_Init(void);
 static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
 void writeReg(uint8_t addr, uint8_t value);
-void readReg(uint8_t addr);
-void sendPacket(uint8_t data, uint8_t size);
+uint8_t readReg(uint8_t addr);
+void sendPacket(uint8_t data[]);
+void writeReg_Burst(uint8_t addr, uint8_t data[], uint8_t length);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint8_t data = 0;
+uint8_t send[] = "Hello Jacob\n";
+uint8_t headerTo = 255;
+uint8_t headerFrom = 255;
+uint8_t headerID = 0;
+uint8_t headerFlags = 0;
 /* USER CODE END 0 */
 
 /**
@@ -100,17 +106,25 @@ int main(void)
   HAL_GPIO_WritePin(LORA_RST_GPIO_Port, LORA_RST_Pin, GPIO_PIN_SET);
   HAL_Delay(10);
 
+  //set to sleep mode
+  writeReg(RH_RF95_REG_01_OP_MODE, (readReg(RH_RF95_REG_01_OP_MODE) & ~(0x3)));
 
-  //set to HF mode
-  writeReg(RH_RF95_REG_01_OP_MODE, (0x09 & ~(0x1 << 3)));
+  //set to HF mode, and long range mode
+  uint8_t temp = readReg(RH_RF95_REG_01_OP_MODE) & ~(0x1 << 3); //HF mode
+  temp = temp | (0x1 << 7); //long range mode
+  writeReg(RH_RF95_REG_01_OP_MODE, temp);
 
   //set frequency to 915MHz = 0xE4C000
   writeReg(RH_RF95_REG_08_FRF_LSB, 0x00);
   writeReg(RH_RF95_REG_07_FRF_MID, 0xC0);
   writeReg(RH_RF95_REG_06_FRF_MSB, 0xE4);
 
-  //set tx power to 23
+  //set up FIFO
+  writeReg(RH_RF95_REG_0E_FIFO_TX_BASE_ADDR, 0);
+  writeReg(RH_RF95_REG_0F_FIFO_RX_BASE_ADDR, 0);
 
+  //set to STDBY mode from IDLE
+  writeReg(RH_RF95_REG_01_OP_MODE, (readReg(RH_RF95_REG_01_OP_MODE) | RH_RF95_MODE_STDBY));
 
   /* USER CODE END 2 */
  
@@ -124,10 +138,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-	writeReg(RH_RF95_REG_22_PAYLOAD_LENGTH, 0x5); //configure payload length
-	HAL_Delay(1);
-	readReg(RH_RF95_REG_22_PAYLOAD_LENGTH);
-	HAL_Delay(100);
+	sendPacket(send);
 
   }
   /* USER CODE END 3 */
@@ -259,18 +270,41 @@ void writeReg(uint8_t addr, uint8_t value)
 }
 
 //Function for reading from a register
-void readReg(uint8_t addr)
+uint8_t readReg(uint8_t addr)
 {
 	uint8_t reg = addr & ~0x80;
+	uint8_t data = 0;
 	HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_RESET); //pull NSS low to start frame
 	//HAL_SPI_TransmitReceive(&hspi2, &reg, &data, 1, 1000);
 	HAL_SPI_Transmit(&hspi2, &reg, sizeof(reg), 1000); //send a read command from that address
 	HAL_SPI_Receive(&hspi2, &data, sizeof(data), 1000);
 	HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_SET); //pull NSS high to end frame
+	return data;
+}
+
+//Function to burst write (primarily for FIFO)
+void writeReg_Burst(uint8_t addr, uint8_t data[], uint8_t length)
+{
+	uint8_t reg = addr | 0x80;
+	uint8_t val = 0;
+	if (length >= 1)
+	{
+		HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_RESET); //pull NSS low to start frame
+		HAL_SPI_Transmit(&hspi2, &reg, (uint16_t)sizeof(reg), 1000);
+		while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
+		for(int i = 0; i < length; i++)
+		{
+			val = data[i];
+			HAL_SPI_Transmit(&hspi2, &val, (uint16_t)sizeof(val), 1000);
+			while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
+		}
+
+		HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_SET); //pull NSS high to end frame
+	}
 }
 
 //Function for sending a packet to another lora module (not finished)
-void sendPacket(uint8_t data, uint8_t size)
+void sendPacket(uint8_t data[])
 {
 	  //send information
 	  	  //set mode idle
@@ -281,10 +315,34 @@ void sendPacket(uint8_t data, uint8_t size)
 	  	  //set mode to TX
 
 	//set mode to idle
-	//writeReg(RH_RF95_REG_01_OP_MODE, RH_RF95_MODE_STDBY);
+	uint8_t temp = readReg(RH_RF95_REG_01_OP_MODE) & ~(0x3);
+	temp = temp | RH_RF95_MODE_STDBY;
+	writeReg(RH_RF95_REG_01_OP_MODE, temp);
 
 	//position pointer at the beginning of the FIFO
-	//writeReg(RH_RF95_REG_00_FIFO, );
+	writeReg(RH_RF95_REG_0D_FIFO_ADDR_PTR, 0);
+
+	//set headers
+	writeReg(RH_RF95_REG_00_FIFO, headerTo); //header TO
+	writeReg(RH_RF95_REG_00_FIFO, headerFrom); //header FROM
+	writeReg(RH_RF95_REG_00_FIFO, headerID); //header ID
+	writeReg(RH_RF95_REG_00_FIFO, headerFlags); //header FLAGS
+
+	uint8_t size = (sizeof(send)/sizeof(send[0]));
+
+	//write message data to fifo
+	writeReg_Burst(RH_RF95_REG_00_FIFO, send, size);
+
+	//set payload length
+	writeReg(RH_RF95_REG_22_PAYLOAD_LENGTH, sizeof(send) + RH_RF95_HEADER_LEN);
+
+	HAL_Delay(10); //delay some time
+
+	//set mode to TX
+	temp = readReg(RH_RF95_REG_01_OP_MODE) & ~(0x3);
+	temp = temp | RH_RF95_MODE_TX;
+
+	HAL_Delay(1000); //delay some time
 }
 /* USER CODE END 4 */
 

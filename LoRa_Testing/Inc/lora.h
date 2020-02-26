@@ -191,3 +191,5 @@
 // RH_RF95_REG_4D_PA_DAC                              0x4d
 #define RH_RF95_PA_DAC_DISABLE                        0x04
 #define RH_RF95_PA_DAC_ENABLE                         0x07
+
+#define RH_RF95_HEADER_LEN 4
