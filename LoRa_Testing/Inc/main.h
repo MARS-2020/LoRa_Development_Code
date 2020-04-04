@@ -62,6 +62,8 @@ void Error_Handler(void);
 #define LORA_NSS_GPIO_Port GPIOB
 #define LORA_RST_Pin GPIO_PIN_8
 #define LORA_RST_GPIO_Port GPIOA
+#define DEBUG_LED_Pin GPIO_PIN_13
+#define DEBUG_LED_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

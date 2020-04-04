@@ -57,6 +57,9 @@ uint8_t readReg(uint8_t addr);
 void sendPacket(uint8_t data[], uint8_t size);
 void writeReg_Burst(uint8_t addr, uint8_t data[], uint8_t length);
 void LORA_INIT(void);
+void receiveData(void);
+uint8_t valid(uint8_t interrupts);
+void readFIFO(uint8_t buff[], uint16_t size);
 
 /* USER CODE END PFP */
 
@@ -71,6 +74,8 @@ uint8_t headerTo = 255;
 uint8_t headerFrom = 255;
 uint8_t headerID = 0;
 uint8_t headerFlags = 0;
+
+uint8_t receive[80]; //receive data buffer
 /* USER CODE END 0 */
 
 /**
@@ -113,14 +118,21 @@ int main(void)
 
   LORA_INIT();
 
+
+  /*
   sendPacket(send, sizeof(send));
-  HAL_Delay(10);
+  HAL_Delay(1000);
   sendPacket(send1, sizeof(send1));
-  HAL_Delay(10);
+  HAL_Delay(1000);
   sendPacket(send2, sizeof(send2));
-  HAL_Delay(10);
+  HAL_Delay(1000);
   sendPacket(send3, sizeof(send3));
-  HAL_Delay(10);
+  HAL_Delay(1000);
+  */
+
+  //setup RX
+  writeReg(RH_RF95_REG_01_OP_MODE, 0x05);
+  writeReg(RH_RF95_REG_40_DIO_MAPPING1, 0x00);
 
   /* USER CODE END 2 */
  
@@ -130,6 +142,24 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  if(readReg(RH_RF95_REG_12_IRQ_FLAGS) == 0x50)
+	  {
+		  writeReg(RH_RF95_REG_01_OP_MODE, 0x01);
+		  writeReg(RH_RF95_REG_12_IRQ_FLAGS, 0xFF);
+
+		  receiveData();
+
+		  writeReg(RH_RF95_REG_01_OP_MODE, 0x05);
+		  writeReg(RH_RF95_REG_40_DIO_MAPPING1, 0x00);
+
+		  asm("nop");
+
+		  //HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_SET);
+		  //HAL_Delay(10);
+		  //HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_RESET);
+	  }
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -233,6 +263,9 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LORA_RST_GPIO_Port, LORA_RST_Pin, GPIO_PIN_SET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_RESET);
+
   /*Configure GPIO pin : LORA_NSS_Pin */
   GPIO_InitStruct.Pin = LORA_NSS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -240,12 +273,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LORA_NSS_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LORA_RST_Pin */
-  GPIO_InitStruct.Pin = LORA_RST_Pin;
+  /*Configure GPIO pins : LORA_RST_Pin DEBUG_LED_Pin */
+  GPIO_InitStruct.Pin = LORA_RST_Pin|DEBUG_LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LORA_RST_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 }
 
@@ -274,6 +307,30 @@ uint8_t readReg(uint8_t addr)
 	HAL_SPI_Receive(&hspi2, &data, sizeof(data), 1000);
 	HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_SET); //pull NSS high to end frame
 	return data;
+}
+
+//Function for reading from FIFO
+void readFIFO(uint8_t buff[], uint16_t size)
+{
+	uint8_t reg = RH_RF95_REG_00_FIFO & ~0x80;
+	HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_RESET); //pull NSS low to start frame
+	HAL_SPI_Transmit(&hspi2, &reg, sizeof(reg), 1000); //send a read command from that address
+	HAL_SPI_Receive(&hspi2, buff, size, 1000);
+	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
+	HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_SET); //pull NSS high to end frame
+}
+
+//Function for reading from a register
+void receiveData()
+{
+	if (readReg(RH_RF95_REG_12_IRQ_FLAGS) == 0x00)
+	{
+		writeReg(RH_RF95_REG_0D_FIFO_ADDR_PTR, readReg(RH_RF95_REG_10_FIFO_RX_CURRENT_ADDR)); //fifo addr ptr = fifo rx current addr
+		uint8_t bytesLimit = readReg(RH_RF95_REG_13_RX_NB_BYTES);
+		HAL_Delay(10);
+		readFIFO(receive, (uint16_t) bytesLimit);
+		writeReg(RH_RF95_REG_0D_FIFO_ADDR_PTR, 0x00);
+	}
 }
 
 //Function to burst write (primarily for FIFO)
@@ -355,6 +412,15 @@ void LORA_INIT(void)
 	//set power
 	writeReg(RH_RF95_REG_4D_PA_DAC, 0x07); //padac
 	writeReg(RH_RF95_REG_09_PA_CONFIG, 0x8F); //output power and PA_BOOST
+}
+
+uint8_t valid(uint8_t interrupts)
+{
+	if(interrupts != 0x50) //0x50 means only RXDone and ValidHeader are set
+	{
+		return 0;
+	}
+	return 1;
 }
 
 /* USER CODE END 4 */
