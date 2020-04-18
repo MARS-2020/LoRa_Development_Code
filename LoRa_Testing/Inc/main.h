@@ -58,12 +58,15 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define LORA_NSS_Pin GPIO_PIN_12
-#define LORA_NSS_GPIO_Port GPIOB
-#define LORA_RST_Pin GPIO_PIN_8
-#define LORA_RST_GPIO_Port GPIOA
-#define DEBUG_LED_Pin GPIO_PIN_13
-#define DEBUG_LED_GPIO_Port GPIOA
+#define LORA_NSS_Pin GPIO_PIN_4
+#define LORA_NSS_GPIO_Port GPIOA
+#define LORA_RST_Pin GPIO_PIN_0
+#define LORA_RST_GPIO_Port GPIOB
+#define LORA_DIO_Pin GPIO_PIN_1
+#define LORA_DIO_GPIO_Port GPIOB
+#define LORA_DIO_EXTI_IRQn EXTI0_1_IRQn
+#define LED3_Pin GPIO_PIN_4
+#define LED3_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

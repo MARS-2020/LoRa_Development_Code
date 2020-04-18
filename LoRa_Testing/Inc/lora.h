@@ -1,3 +1,15 @@
+#include "main.h"
+
+void writeReg(uint8_t addr, uint8_t value);
+uint8_t readReg(uint8_t addr);
+void sendPacket(uint8_t data[], uint8_t size);
+void writeReg_Burst(uint8_t addr, uint8_t data[], uint8_t length);
+void LORA_INIT(void);
+void receiveData(void);
+uint8_t valid(uint8_t interrupts);
+void readFIFO(uint8_t buff[], uint16_t size);
+
+
 // Register names (LoRa Mode, from table 85)
 #define RH_RF95_REG_00_FIFO                                0x00
 #define RH_RF95_REG_01_OP_MODE                             0x01
