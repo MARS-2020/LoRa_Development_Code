@@ -132,6 +132,12 @@ void sendPacket(uint8_t data[], uint8_t size)
 
 void LORA_INIT(void)
 {
+	//reset LoRa
+	HAL_GPIO_WritePin(LORA_RST_GPIO_Port, LORA_RST_Pin, GPIO_PIN_RESET);
+	HAL_Delay(10);
+	HAL_GPIO_WritePin(LORA_RST_GPIO_Port, LORA_RST_Pin, GPIO_PIN_SET);
+	HAL_Delay(10);
+
 	//initialization
 	writeReg(RH_RF95_REG_01_OP_MODE, 0x80); //long range mode
 	//readReg(RH_RF95_REG_01_OP_MODE);
