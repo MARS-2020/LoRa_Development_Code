@@ -63,6 +63,8 @@ void readFIFO(uint8_t buff[], uint16_t size)
 //Function for reading from a register
 void receiveData()
 {
+	writeReg(RH_RF95_REG_01_OP_MODE, 0x01);
+	writeReg(RH_RF95_REG_12_IRQ_FLAGS, 0xFF);
 	if (readReg(RH_RF95_REG_12_IRQ_FLAGS) == 0x00)
 	{
 		writeReg(RH_RF95_REG_0D_FIFO_ADDR_PTR, readReg(RH_RF95_REG_10_FIFO_RX_CURRENT_ADDR)); //fifo addr ptr = fifo rx current addr
@@ -71,6 +73,8 @@ void receiveData()
 		readFIFO(receive, (uint16_t) bytesLimit);
 		writeReg(RH_RF95_REG_0D_FIFO_ADDR_PTR, 0x00);
 	}
+	writeReg(RH_RF95_REG_01_OP_MODE, 0x05);
+	writeReg(RH_RF95_REG_40_DIO_MAPPING1, 0x00);
 }
 
 //Function to burst write (primarily for FIFO)
@@ -152,6 +156,10 @@ void LORA_INIT(void)
 	//set power
 	writeReg(RH_RF95_REG_4D_PA_DAC, 0x07); //padac
 	writeReg(RH_RF95_REG_09_PA_CONFIG, 0x8F); //output power and PA_BOOST
+
+	//set up for RX by default
+	writeReg(RH_RF95_REG_01_OP_MODE, 0x05);
+	writeReg(RH_RF95_REG_40_DIO_MAPPING1, 0x00);
 }
 
 uint8_t valid(uint8_t interrupts)

@@ -114,10 +114,6 @@ int main(void)
   HAL_Delay(1000);
   */
 
-  //setup RX
-  writeReg(RH_RF95_REG_01_OP_MODE, 0x05);
-  writeReg(RH_RF95_REG_40_DIO_MAPPING1, 0x00);
-
   /* USER CODE END 2 */
  
  
@@ -283,14 +279,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 
 	if(readReg(RH_RF95_REG_12_IRQ_FLAGS) == 0x50)
 	  {
-		  writeReg(RH_RF95_REG_01_OP_MODE, 0x01);
-		  writeReg(RH_RF95_REG_12_IRQ_FLAGS, 0xFF);
-
 		  receiveData();
-
-		  writeReg(RH_RF95_REG_01_OP_MODE, 0x05);
-		  writeReg(RH_RF95_REG_40_DIO_MAPPING1, 0x00);
-
 		  //HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
 		  //HAL_Delay(100);
 		  //HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
