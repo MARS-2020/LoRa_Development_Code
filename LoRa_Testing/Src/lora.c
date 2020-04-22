@@ -57,6 +57,7 @@ void readFIFO(uint8_t buff[], uint16_t size)
 	uint8_t reg = RH_RF95_REG_00_FIFO & ~0x80;
 	HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_RESET); //pull NSS low to start frame
 	HAL_SPI_Transmit(&hspi1, &reg, sizeof(reg), 1000); //send a read command from that address
+	while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
 	HAL_SPI_Receive(&hspi1, buff, size, 1000);
 	while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
 	HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_SET); //pull NSS high to end frame

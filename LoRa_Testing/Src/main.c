@@ -44,6 +44,8 @@
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
 
+extern uint8_t receive[80];
+
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
