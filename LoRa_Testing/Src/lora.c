@@ -44,7 +44,9 @@ uint8_t readReg(uint8_t addr)
 	HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_RESET); //pull NSS low to start frame
 	//HAL_SPI_TransmitReceive(&hspi1, &reg, &data, 1, 1000);
 	HAL_SPI_Transmit(&hspi1, &reg, sizeof(reg), 1000); //send a read command from that address
+	while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
 	HAL_SPI_Receive(&hspi1, &data, sizeof(data), 1000);
+	while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
 	HAL_GPIO_WritePin(LORA_NSS_GPIO_Port, LORA_NSS_Pin, GPIO_PIN_SET); //pull NSS high to end frame
 	return data;
 }
@@ -118,16 +120,20 @@ void sendPacket(uint8_t data[], uint8_t size)
 	//set payload length
 	writeReg(RH_RF95_REG_22_PAYLOAD_LENGTH, size + RH_RF95_HEADER_LEN);
 
-	HAL_Delay(10); //delay some time
+	//HAL_Delay(10); //delay some time
 
 	writeReg(RH_RF95_REG_01_OP_MODE, 0x03); //TX Mode
-	writeReg(RH_RF95_REG_40_DIO_MAPPING1, 0x40); //DIO0
+	//writeReg(RH_RF95_REG_40_DIO_MAPPING1, 0x40); //DIO0
 
 	while(readReg(RH_RF95_REG_12_IRQ_FLAGS) != 0x08);
 
 	writeReg(RH_RF95_REG_01_OP_MODE, 0x01); //STDBY
 
 	writeReg(RH_RF95_REG_12_IRQ_FLAGS, 0xFF); //clear txdone
+
+	//set up for RX by default
+	writeReg(RH_RF95_REG_01_OP_MODE, 0x05);
+	writeReg(RH_RF95_REG_40_DIO_MAPPING1, 0x00);
 }
 
 void LORA_INIT(void)
